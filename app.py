@@ -5,28 +5,30 @@ import re
 import mysql.connector
 import pandas as pd
 from mysql.connector import errorcode
-from flask_mysqldb import MySQL
 from flask_session import Session
 
-
-currentlocation = os.path.dirname(os.path.abspath(__file__))
-
-myapp = Flask(__name__)
-myapp.secret_key = '@dkjgfjgfhkj jxbjljv kjxgvljklkj'
-
-UPLOAD_FOLDER = 'static/files'
-myapp.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app = Flask(__name__)
+app.secret_key = '@dkjgfjgfhkj jxbjljv kjxgvljklkj'
+dir_path = os.path.dirname(os.path.realpath(__file__))
+# currentlocation = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(dir_path, 'static', 'files')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+#app.config.update(dict(PREFERRED_URL_SCHEME = 'https'))
 
 config = {
-  'host':'cc-skywalkers.mysql.database.azure.com',
-  'user':'skywalkers@cc-skywalkers',
-  'password':'cloudcloud@1234',
-  'database':'ccmiddb',
-  'ssl_ca': 'ssl\BaltimoreCyberTrustRoot.crt.pem',
+  'host':'cc-mysqlserver.mysql.database.azure.com',
+  'user':'ccproject@cc-mysqlserver',
+  'password':'Azure@1234',
+  'database':'guest',
+  'ssl_ca': os.path.join(dir_path, 'ssl', 'BaltimoreCyberTrustRoot.crt.pem'),
+  'ssl_verify_cert': 'true',
 }
 
+def get_https_url(item):
+    return url_for(item, _external=True, _scheme='http')
 
-@myapp.route('/',methods=['GET','POST'])
+@app.route('/',methods=['GET','POST'])
 def homepage():
     msg=''
     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
@@ -39,20 +41,20 @@ def homepage():
         if user: 
             session['loggedin'] = True
             session['username'] = username
-            return redirect(url_for('profile'))
+            return redirect(get_https_url('profile'))
         else:
             # Account doesnt exist
             msg = 'Incorrect username/password!'
     return render_template("homepage.html",msg=msg)
     
 
-@myapp.route('/logout')
+@app.route('/logout')
 def logout():
    session.pop('username', None)
    return render_template("homepage.html")
 
 
-@myapp.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['GET', 'POST'])
 def register():
     msg = ''
     if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
@@ -76,21 +78,17 @@ def register():
             conn.commit()
             session['loggedin'] = True
             session['username'] = username
-            return redirect('profile')
+            return redirect(get_https_url('profile'))
     return render_template("register.html",msg=msg)
             
 
-@myapp.route('/profile',methods=['GET','POST'])
+@app.route('/profile',methods=['GET','POST'])
 def profile():
     if 'loggedin' in session:
-        conn = mysql.connector.connect(**config)
-        cur = conn.cursor()
-        cur.execute('SELECT * FROM users WHERE username = %s', (session['username'],))
-        user = cur.fetchone()
-        return render_template('profile.html',user=user) 
-    return redirect(url_for(homepage))
+        return render_template('dashboard.html') 
+    return redirect(get_https_url('homepage'))
 
-@myapp.route('/Search', methods=['GET','POST'])
+@app.route('/Search', methods=['GET','POST'])
 def Search():
     msg = ''
     if request.method == 'POST' and 'search' in request.form :
@@ -122,11 +120,11 @@ def Search():
         return render_template('Search.html', data= data)
     
 
-@myapp.route('/dashboard')
+@app.route('/dashboard')
 def dashboard():
    return render_template("dashboard.html")
 
-@myapp.route('/upload', methods=['GET','POST'])
+@app.route('/upload', methods=['GET','POST'])
 def upload():
     msg = ''
     if request.method == 'POST':
@@ -139,7 +137,7 @@ def upload():
             msg='No Files passed'
             return render_template('upload.html', msg=msg)
         else:
-            file_path = os.path.join(myapp.config['UPLOAD_FOLDER'],hdata.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'],hdata.filename)
             hdata.save(file_path)
             col_names=['HSHD_NUM','L','AGE_RANGE','MARITAL','INCOME_RANGE','HOMEOWNER','HSHD_COMPOSITION','HH_SIZE','CHILDREN']
             csvData = pd.read_csv(file_path,names=col_names,header=0)
@@ -150,7 +148,7 @@ def upload():
                 cur.execute(query,value)
                 conn.commit()
             #transaction data
-            file_path = os.path.join(myapp.config['UPLOAD_FOLDER'],tdata.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'],tdata.filename)
             tdata.save(file_path)
             col_names=['TRANS_ID','BASKET_NUM','HSHD_NUM','PURCHASE_','PRODUCT_NUM','SPEND','UNITS','STORE_R','WEEK_NUM','YEAR']
             csvData = pd.read_csv(file_path,names=col_names,header=0)
@@ -160,7 +158,7 @@ def upload():
                 cur.execute(query,value)
                 conn.commit()
             #Products data
-            file_path = os.path.join(myapp.config['UPLOAD_FOLDER'],pdata.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'],pdata.filename)
             pdata.save(file_path)
             col_names=['PRODUCT_NUM','DEPARTMENT','COMMODITY','BRAND_TY','NATURAL_ORGANIC_FLAG']
             csvData = pd.read_csv(file_path,names=col_names,header=0)
@@ -177,4 +175,5 @@ def upload():
     
     
 if __name__=="__main__":
-    myapp.run(debug=True)
+    app.run(host="0.0.0.0",port=8000)
+    

@@ -41,7 +41,11 @@
   align-content: center;
   text-align: center;
 }
-        
+nav{
+    background-color: #563D7C;
+    color: #fff;
+    padding: 30px 60px;
+}
 #details {
   font-family: Arial, Helvetica, sans-serif;
   border-collapse: collapse;
@@ -71,7 +75,7 @@
     <nav class="navtop">
     
     <div>
-     <p><a class="btn" href="{{ url_for('logout')}}">logout</a></p> 
+     <a class="btn" href="{{ url_for('logout')}}">logout</a> 
      
         <br>
         <br>
